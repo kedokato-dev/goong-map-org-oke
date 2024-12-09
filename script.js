@@ -31,7 +31,7 @@ function initializeMap(lat, lng) {
     zoom: 13,
   });
 
-  new goongjs.Marker({ color: "green" })
+  new goongjs.Marker({ color: "Magenta" })
     .setLngLat([lng, lat])
     .addTo(map);
 
@@ -41,7 +41,6 @@ function initializeMap(lat, lng) {
   addLocationButton(map, lat, lng);
 }
 
-// Hàm tải các điểm cứu trợ và thiết lập dropdown
 // Hàm tải các điểm cứu trợ và thiết lập sự kiện click vào marker
 async function loadMarkersWithRouting(map, userLng, userLat) {
   try {
@@ -50,31 +49,77 @@ async function loadMarkersWithRouting(map, userLng, userLat) {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const locations = await response.json();
 
-    // Thêm marker cho các điểm cứu trợ với popup
     locations.forEach((location) => {
       // Xác định màu marker dựa trên trạng thái
       let markerColor = "red"; // Mặc định là màu đỏ
       if (location.status === "Đang cứu trợ") {
         markerColor = "orange";
+      } else if(location.status == "Chờ cứu trợ"){
+        markerColor = "red";
+      }else if(location.status == "Hoàn thành cứu trợ"){
+        markerColor = "green";
       }
 
       const marker = new goongjs.Marker({ color: markerColor })
         .setLngLat([location.longitude, location.latitude])
         .addTo(map);
 
-      // Tạo popup chứa thông tin địa điểm
-      const popup = new goongjs.Popup({ offset: 25 }).setHTML(
-        `<div>
-          <h4>${location.name || "Không có tên"}</h4>
-          <p><b>Tên người gửi:</b> ${location.request_sender}</p>
-          <p><b>SĐT:</b> ${location.phone_number}</p>
-          <p><b>Loại yêu cầu:</b> ${location.request_type}</p>
-          <p><b>Trạng thái:</b> ${location.status}</p>
-          <p><b>Số lượng người cần cứu trợ:</b> ${location.number_people || "Không có thông tin"}</p>
-        </div>`
-      );
+      // Tạo nội dung popup với dropdown và nút cập nhật
+      const popupContent = document.createElement("div");
 
-      // Liên kết popup với marker
+      const infoSection = document.createElement("div");
+      infoSection.innerHTML = `
+        <h4>${location.name || "Không có tên"}</h4>
+        <p><b>Tên người gửi:</b> ${location.request_sender}</p>
+        <p><b>SĐT:</b> ${location.phone_number}</p>
+        <p><b>Loại yêu cầu:</b> ${location.request_type}</p>
+        <p><b>Số lượng người cần cứu trợ:</b> ${location.number_people || "Không có thông tin"}</p>
+        <p><b>Trạng thái hiện tại:</b> ${location.status}</p>
+      `;
+
+      // Dropdown chọn trạng thái
+      const statusSelect = document.createElement("select");
+      ["Đang cứu trợ", "Chờ cứu trợ", "Hoàn thành cứu trợ"].forEach((status) => {
+        const option = document.createElement("option");
+        option.value = status;
+        option.textContent = status;
+        if (status === location.status) {
+          option.selected = true;
+        }
+        statusSelect.appendChild(option);
+      });
+
+      // Nút cập nhật trạng thái
+      const updateButton = document.createElement("button");
+      updateButton.textContent = "Cập nhật trạng thái";
+      updateButton.style.marginTop = "10px";
+
+      updateButton.addEventListener("click", async () => {
+        const newStatus = statusSelect.value;
+
+        try {
+          const response = await fetch(`https://goong-map-admin.vercel.app/locations/${location._id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus }),
+          });
+
+          if (response.ok) {
+            alert("Cập nhật trạng thái thành công!");
+            location.status = newStatus; // Cập nhật trạng thái trong bộ nhớ client
+          } else {
+            alert("Cập nhật trạng thái thất bại!");
+          }
+        } catch (error) {
+          console.error("Lỗi khi cập nhật trạng thái:", error);
+        }
+      });
+
+      popupContent.appendChild(infoSection);
+      popupContent.appendChild(statusSelect);
+      popupContent.appendChild(updateButton);
+
+      const popup = new goongjs.Popup({ offset: 25 }).setDOMContent(popupContent);
       marker.setPopup(popup);
     });
 
@@ -87,6 +132,7 @@ async function loadMarkersWithRouting(map, userLng, userLat) {
     console.error("Không thể tải dữ liệu địa điểm:", error);
   }
 }
+
 
 
 // Hàm tạo dropdown và thiết lập sự kiện
