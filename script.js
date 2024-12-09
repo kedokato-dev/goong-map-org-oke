@@ -1,4 +1,3 @@
-// Thay YOUR_GOONG_API_KEY và YOUR_GOONG_API_DIRECTION bằng API key của bạn
 const GOONG_API_KEY = "32kmtyYrNGxGT8HTfQuZoJKwKNltvXVh4fucACBd";
 const GOONG_API_DIRECTION = "mCTsP9i1RSee5Q2df9p57Gvseo9aueYfgdWDKaZO";
 
@@ -49,14 +48,14 @@ async function loadMarkersWithRouting(map, userLng, userLat) {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const locations = await response.json();
 
+    removeOldMarkers(map); // Xóa các marker cũ trước khi thêm mới
+
     locations.forEach((location) => {
       // Xác định màu marker dựa trên trạng thái
       let markerColor = "red"; // Mặc định là màu đỏ
       if (location.status === "Đang cứu trợ") {
         markerColor = "orange";
-      } else if(location.status == "Chờ cứu trợ"){
-        markerColor = "red";
-      }else if(location.status == "Hoàn thành cứu trợ"){
+      } else if (location.status === "Hoàn thành cứu trợ") {
         markerColor = "green";
       }
 
@@ -106,7 +105,8 @@ async function loadMarkersWithRouting(map, userLng, userLat) {
 
           if (response.ok) {
             alert("Cập nhật trạng thái thành công!");
-            location.status = newStatus; // Cập nhật trạng thái trong bộ nhớ client
+            // Gọi lại để load các marker mới
+            loadMarkersWithRouting(map, userLng, userLat);
           } else {
             alert("Cập nhật trạng thái thất bại!");
           }
@@ -133,12 +133,30 @@ async function loadMarkersWithRouting(map, userLng, userLat) {
   }
 }
 
+// Hàm xóa các marker cũ
+function removeOldMarkers(map) {
+  const layers = map.getStyle().layers;
+  layers.forEach((layer) => {
+    if (layer.id.startsWith("marker") || layer.id === "route") {
+      map.removeLayer(layer.id);
+      map.removeSource(layer.id);
+    }
+  });
+}
 
 
-// Hàm tạo dropdown và thiết lập sự kiện
+
+
+
 function setupRouting(map, locations, userLat, userLng) {
   const pointSelector = document.getElementById("point-selector");
 
+  // Xóa các phần tử con cũ của `pointSelector` nếu có
+  while (pointSelector.firstChild) {
+    pointSelector.removeChild(pointSelector.firstChild);
+  }
+
+  // Tạo dropdown và nút tìm đường mới
   const startSelect = createDropdown("start-point", "Chọn điểm bắt đầu", locations);
   const endSelect = createDropdown("end-point", "Chọn điểm đến", locations);
 
@@ -173,10 +191,12 @@ function setupRouting(map, locations, userLat, userLng) {
     }
   });
 
+  // Thêm dropdown và nút vào giao diện
   pointSelector.appendChild(startSelect);
   pointSelector.appendChild(endSelect);
   pointSelector.appendChild(routeButton);
 }
+
 
 // Hàm lấy chỉ đường và khoảng cách
 async function getDirectionsWithDistance(startLng, startLat, endLng, endLat) {
