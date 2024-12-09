@@ -191,7 +191,7 @@ function drawRoute(map, polyline) {
       },
     },
     layout: { "line-join": "round", "line-cap": "round" },
-    paint: { "line-color": "#1E90FF", "line-width": 4 },
+    paint: { "line-color": "#FF3366", "line-width": 4 },
   };
 
   if (map.getLayer("route")) {
